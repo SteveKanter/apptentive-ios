@@ -36,9 +36,18 @@ NSString *const ATSurveySentSurveysPreferenceKey = @"ATSurveySentSurveysPreferen
 	return sharedBackend;
 }
 
+-(id) init {
+	if( (self = [super init]) ) {
+		pendingSurveysToBeDisplayed = [[NSMutableDictionary alloc] init];
+	}
+	return self;
+}
 - (void)dealloc {
 	checkSurveyRequest.delegate = nil;
+	particularSurveyRequest.delegate = nil;
 	[checkSurveyRequest release], checkSurveyRequest = nil;
+	[particularSurveyRequest release], particularSurveyRequest = nil;
+	[pendingSurveysToBeDisplayed release], pendingSurveysToBeDisplayed = nil;
 	[super dealloc];
 }
 
@@ -48,6 +57,14 @@ NSString *const ATSurveySentSurveysPreferenceKey = @"ATSurveySentSurveysPreferen
 		checkSurveyRequest = [[client requestForGettingSurvey] retain];
 		checkSurveyRequest.delegate = self;
 		[checkSurveyRequest start];
+	}
+}
+- (void) requestSurvey:(NSString *)survey {
+	if (particularSurveyRequest == nil) {
+		ATWebClient *client = [ATWebClient sharedClient];
+		particularSurveyRequest = [[client requestForGettingParticularSurvey:survey] retain];
+		particularSurveyRequest.delegate = self;
+		[particularSurveyRequest start];
 	}
 }
 
@@ -79,6 +96,10 @@ NSString *const ATSurveySentSurveysPreferenceKey = @"ATSurveySentSurveysPreferen
 	[[NSNotificationCenter defaultCenter] postNotificationName:ATSurveyDidShowWindowNotification object:nil userInfo:metricsInfo];
 	[metricsInfo release], metricsInfo = nil;
 }
+- (void)presentSurvey:(NSString *)surveyID fromViewController:(UIViewController *)viewController {
+	[pendingSurveysToBeDisplayed setObject:viewController forKey:surveyID];
+	[self requestSurvey:surveyID];
+}
 
 - (void)setDidSendSurvey:(ATSurvey *)survey {
 	NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
@@ -94,7 +115,7 @@ NSString *const ATSurveySentSurveysPreferenceKey = @"ATSurveySentSurveysPreferen
 
 #pragma mark ATAPIRequestDelegate
 - (void)at_APIRequestDidFinish:(ATAPIRequest *)request result:(NSObject *)result {
-	if (request == checkSurveyRequest) {
+	if (request == checkSurveyRequest || request == particularSurveyRequest) {
 		ATSurveyParser *parser = [[ATSurveyParser alloc] init];
 		ATSurvey *survey = [parser parseSurvey:(NSData *)result];
 		if (survey == nil) {
@@ -104,8 +125,20 @@ NSString *const ATSurveySentSurveysPreferenceKey = @"ATSurveySentSurveysPreferen
 			currentSurvey = [survey retain];
 			[[NSNotificationCenter defaultCenter] postNotificationName:ATSurveyNewSurveyAvailableNotification object:nil];
 		}
-		checkSurveyRequest.delegate = nil;
-		[checkSurveyRequest release], checkSurveyRequest = nil;
+		if(request == checkSurveyRequest) {
+			checkSurveyRequest.delegate = nil;
+			[checkSurveyRequest release], checkSurveyRequest = nil;
+		}
+		if(request == particularSurveyRequest) {
+			checkSurveyRequest.delegate = nil;
+			[checkSurveyRequest release], checkSurveyRequest = nil;
+			
+			if([pendingSurveysToBeDisplayed objectForKey:[currentSurvey identifier]]) {
+				UIViewController *viewController = [pendingSurveysToBeDisplayed objectForKey:[currentSurvey identifier]];
+				[pendingSurveysToBeDisplayed removeObjectForKey:[currentSurvey identifier]];
+				[self presentSurveyControllerFromViewController:viewController];
+			}
+		}
 		[parser release], parser = nil;
 	}
 }

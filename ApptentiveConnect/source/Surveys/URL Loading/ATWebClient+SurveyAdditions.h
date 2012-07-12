@@ -14,4 +14,5 @@
 @interface ATWebClient (SurveyAdditions)
 - (ATAPIRequest *)requestForGettingSurvey;
 - (ATAPIRequest *)requestForPostingSurveyResponse:(ATSurveyResponse *)surveyResponse;
+- (ATAPIRequest *)requestForGettingParticularSurvey:(NSString *)survey;
 @end

@@ -16,11 +16,14 @@
 @private
 	ATAPIRequest *checkSurveyRequest;
 	ATSurvey *currentSurvey;
+	ATAPIRequest *particularSurveyRequest;
+	NSMutableDictionary *pendingSurveysToBeDisplayed;
 }
 + (ATSurveysBackend *)sharedBackend;
 - (void)checkForAvailableSurveys;
 - (ATSurvey *)currentSurvey;
 - (void)resetSurvey;
 - (void)presentSurveyControllerFromViewController:(UIViewController *)viewController;
+- (void)presentSurvey:(NSString *)surveyID fromViewController:(UIViewController *)viewController;
 - (void)setDidSendSurvey:(ATSurvey *)survey;
 @end
