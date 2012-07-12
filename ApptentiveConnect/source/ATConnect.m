@@ -82,21 +82,13 @@ static ATConnect *sharedConnection = nil;
 }
 
 #if TARGET_OS_IPHONE
-- (void)presentFeedbackControllerFromViewController:(UIViewController *)viewController {
-	UIImage *screenshot = nil;
+- (void)presentFeedbackControllerFromViewController:(UIViewController *)viewController withScreenshot:(UIImage *)screenshot {
     
     if (![[ATBackend sharedBackend] currentFeedback]) {
         ATFeedback *feedback = [[ATFeedback alloc] init];
 		if (additionalFeedbackData && [additionalFeedbackData count]) {
 			[feedback addExtraDataFromDictionary:additionalFeedbackData];
 		}
-    	if (self.shouldTakeScreenshot && self.feedbackControllerType != ATFeedbackControllerSimple) {
-            screenshot = [ATUtilities imageByTakingScreenshot];
-            // Get the rotation of the view hierarchy and rotate the screenshot as
-            // necessary.
-            CGFloat rotation = [ATUtilities rotationOfViewHierarchyInRadians:viewController.view];
-            screenshot = [ATUtilities imageByRotatingImage:screenshot byRadians:rotation];
-        }
 		if (self.initialName && [self.initialName length] > 0) {
 			feedback.name = self.initialName;
 		}
@@ -129,6 +121,19 @@ static ATConnect *sharedConnection = nil;
 	
 	[vc presentFromViewController:viewController animated:YES];
     [vc release];
+}
+- (void)presentFeedbackControllerFromViewController:(UIViewController *)viewController {
+	UIImage *screenshot = nil;
+    if (![[ATBackend sharedBackend] currentFeedback]) {
+    	if (self.shouldTakeScreenshot && self.feedbackControllerType != ATFeedbackControllerSimple) {
+            screenshot = [ATUtilities imageByTakingScreenshot];
+            // Get the rotation of the view hierarchy and rotate the screenshot as
+            // necessary.
+            CGFloat rotation = [ATUtilities rotationOfViewHierarchyInRadians:viewController.view];
+            screenshot = [ATUtilities imageByRotatingImage:screenshot byRadians:rotation];
+        }
+	}
+	[self presentFeedbackControllerFromViewController:viewController withScreenshot:screenshot];
 }
 #elif TARGET_OS_MAC
 - (void)showFeedbackWindow:(id)sender withFeedbackType:(ATFeedbackType)feedbackType {
