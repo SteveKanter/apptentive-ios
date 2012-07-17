@@ -157,7 +157,7 @@
 	JSONDecoder *decoder = [JSONDecoder decoder];
 	NSError *error = nil;
 	id decodedObject = [decoder objectWithData:jsonSurvey error:&error];
-	if (decodedObject && [decodedObject isKindOfClass:[NSArray class]]) {
+	if (decodedObject && [decodedObject isKindOfClass:[NSArray class]] && [decodedObject count] > 0) {
 		
 #define ___GENERATE_RANDOM(__MIN__, __MAX__) ((__MIN__) + arc4random() % (__MAX__ - __MIN__ + 1))
 #define RANDOM_INT(__MIN__, __MAX__) (MIN((__MAX__),MAX((__MIN__),___GENERATE_RANDOM(__MIN__, __MAX__))))
