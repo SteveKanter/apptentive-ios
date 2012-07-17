@@ -41,8 +41,8 @@ NSString *const ATSurveyNewSurveyAvailableNotification = @"ATSurveyNewSurveyAvai
 	ATSurveysBackend *backend = [ATSurveysBackend sharedBackend];
 	[backend presentSurveyControllerFromViewController:viewController];
 }
-+ (void)presentSurveyWithID:(NSString *)surveyID fromViewController:(UIViewController *)viewController {
++ (void)presentSurveyWithTag:(NSString *)tag fromViewController:(UIViewController *)viewController {
 	ATSurveysBackend *backend = [ATSurveysBackend sharedBackend];
-	[backend presentSurvey:surveyID fromViewController:viewController];
+	[backend presentSurvey:tag fromViewController:viewController];
 }
 @end

@@ -24,6 +24,7 @@
 
 #pragma mark Internal Methods
 - (ATURLConnection *)connectionToGet:(NSURL *)theURL;
+- (ATURLConnection *)connectionToGet:(NSURL *)theURL parameters:(NSDictionary *)parameters;
 - (ATURLConnection *)connectionToPost:(NSURL *)theURL;
 - (ATURLConnection *)connectionToPost:(NSURL *)theURL JSON:(NSString *)body;
 - (ATURLConnection *)connectionToPost:(NSURL *)theURL parameters:(NSDictionary *)parameters;

@@ -19,6 +19,6 @@ extern NSString *const ATSurveyNewSurveyAvailableNotification;
  * Presents a survey controller in the window of the given view controller.
  */
 + (void)presentSurveyControllerFromViewController:(UIViewController *)viewController;
-+ (void)presentSurveyWithID:(NSString *)surveyID fromViewController:(UIViewController *)viewController;
++ (void)presentSurveyWithTag:(NSString *)tag fromViewController:(UIViewController *)viewController;
 #endif
 @end

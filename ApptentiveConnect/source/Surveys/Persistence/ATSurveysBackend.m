@@ -59,10 +59,10 @@ NSString *const ATSurveySentSurveysPreferenceKey = @"ATSurveySentSurveysPreferen
 		[checkSurveyRequest start];
 	}
 }
-- (void) requestSurvey:(NSString *)survey {
+- (void) requestSurvey:(NSString *)tag {
 	if (particularSurveyRequest == nil) {
 		ATWebClient *client = [ATWebClient sharedClient];
-		particularSurveyRequest = [[client requestForGettingParticularSurvey:survey] retain];
+		particularSurveyRequest = [[client requestForGettingParticularSurveyTag:tag] retain];
 		particularSurveyRequest.delegate = self;
 		[particularSurveyRequest start];
 	}
@@ -96,15 +96,15 @@ NSString *const ATSurveySentSurveysPreferenceKey = @"ATSurveySentSurveysPreferen
 	[[NSNotificationCenter defaultCenter] postNotificationName:ATSurveyDidShowWindowNotification object:nil userInfo:metricsInfo];
 	[metricsInfo release], metricsInfo = nil;
 }
-- (void)presentSurvey:(NSString *)surveyID fromViewController:(UIViewController *)viewController {
-	[pendingSurveysToBeDisplayed setObject:viewController forKey:surveyID];
-	[self requestSurvey:surveyID];
+- (void)presentSurvey:(NSString *)tag fromViewController:(UIViewController *)viewController {
+	[pendingSurveysToBeDisplayed setObject:viewController forKey:tag];
+	[self requestSurvey:tag];
 }
 
 - (void)setDidSendSurvey:(ATSurvey *)survey {
 	NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
 	NSArray *sentSurveys = [defaults objectForKey:ATSurveySentSurveysPreferenceKey];
-	if (![sentSurveys containsObject:survey.identifier]) {
+	if (![sentSurveys containsObject:survey.identifier] && ![survey multipleResponsesAllowed]) {
 		NSMutableArray *replacementSurveys = [sentSurveys mutableCopy];
 		[replacementSurveys addObject:survey.identifier];
 		[defaults setObject:replacementSurveys forKey:ATSurveySentSurveysPreferenceKey];
@@ -130,12 +130,13 @@ NSString *const ATSurveySentSurveysPreferenceKey = @"ATSurveySentSurveysPreferen
 			[checkSurveyRequest release], checkSurveyRequest = nil;
 		}
 		if(request == particularSurveyRequest) {
-			checkSurveyRequest.delegate = nil;
-			[checkSurveyRequest release], checkSurveyRequest = nil;
+			particularSurveyRequest.delegate = nil;
+			[particularSurveyRequest release], particularSurveyRequest = nil;
 			
-			if([pendingSurveysToBeDisplayed objectForKey:[currentSurvey identifier]]) {
-				UIViewController *viewController = [pendingSurveysToBeDisplayed objectForKey:[currentSurvey identifier]];
-				[pendingSurveysToBeDisplayed removeObjectForKey:[currentSurvey identifier]];
+			NSString *key = [[currentSurvey tags] componentsJoinedByString:@","];
+			if([pendingSurveysToBeDisplayed objectForKey:key]) {
+				UIViewController *viewController = [pendingSurveysToBeDisplayed objectForKey:key];
+				[pendingSurveysToBeDisplayed removeObjectForKey:key];
 				[self presentSurveyControllerFromViewController:viewController];
 			}
 		}

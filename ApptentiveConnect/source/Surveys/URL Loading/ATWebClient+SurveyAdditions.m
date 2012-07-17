@@ -24,9 +24,9 @@
 	request.returnType = ATAPIRequestReturnTypeData;
 	return [request autorelease];
 }
-- (ATAPIRequest *)requestForGettingParticularSurvey:(NSString *)survey {
-	NSString *urlString = [NSString stringWithFormat:@"%@/surveys/%@", [self baseURLString], survey];
-	ATURLConnection *conn = [self connectionToGet:[NSURL URLWithString:urlString]];
+- (ATAPIRequest *)requestForGettingParticularSurveyTag:(NSString *)tag {
+	NSString *urlString = [NSString stringWithFormat:@"%@/surveys", [self baseURLString]];
+	ATURLConnection *conn = [self connectionToGet:[NSURL URLWithString:urlString] parameters:[NSDictionary dictionaryWithObjectsAndKeys:tag, @"tags", @"1", @"active", @"1", @"limit", nil]];
 	conn.timeoutInterval = 20.0;
 	ATAPIRequest *request = [[ATAPIRequest alloc] initWithConnection:conn channelName:[self commonChannelName]];
 	request.returnType = ATAPIRequestReturnTypeData;

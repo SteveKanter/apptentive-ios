@@ -127,6 +127,12 @@
 	if ([jsonDictionary objectForKey:@"required"] != nil) {
 		survey.responseRequired = [(NSNumber *)[jsonDictionary objectForKey:@"required"] boolValue];
 	}
+	if ([jsonDictionary objectForKey:@"multiple_responses"] != nil) {
+		survey.multipleResponsesAllowed = [(NSNumber *)[jsonDictionary objectForKey:@"multiple_responses"] boolValue];
+	}
+	if ([jsonDictionary objectForKey:@"tags"] != nil) {
+		survey.tags = [jsonDictionary objectForKey:@"tags"];
+	}
 	
 	NSObject *questions = [jsonDictionary objectForKey:@"questions"];
 	if ([questions isKindOfClass:[NSArray class]]) {
@@ -151,6 +157,13 @@
 	JSONDecoder *decoder = [JSONDecoder decoder];
 	NSError *error = nil;
 	id decodedObject = [decoder objectWithData:jsonSurvey error:&error];
+	if (decodedObject && [decodedObject isKindOfClass:[NSArray class]]) {
+		
+#define ___GENERATE_RANDOM(__MIN__, __MAX__) ((__MIN__) + arc4random() % (__MAX__ - __MIN__ + 1))
+#define RANDOM_INT(__MIN__, __MAX__) (MIN((__MAX__),MAX((__MIN__),___GENERATE_RANDOM(__MIN__, __MAX__))))
+		
+		decodedObject = [decodedObject objectAtIndex:RANDOM_INT(0, [decodedObject count] - 1)];
+	}
 	if (decodedObject && [decodedObject isKindOfClass:[NSDictionary class]]) {
 		success = YES;
 		NSDictionary *values = (NSDictionary *)decodedObject;

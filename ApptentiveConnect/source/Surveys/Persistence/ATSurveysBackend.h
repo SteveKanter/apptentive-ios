@@ -24,6 +24,6 @@
 - (ATSurvey *)currentSurvey;
 - (void)resetSurvey;
 - (void)presentSurveyControllerFromViewController:(UIViewController *)viewController;
-- (void)presentSurvey:(NSString *)surveyID fromViewController:(UIViewController *)viewController;
+- (void)presentSurvey:(NSString *)tag fromViewController:(UIViewController *)viewController;
 - (void)setDidSendSurvey:(ATSurvey *)survey;
 @end

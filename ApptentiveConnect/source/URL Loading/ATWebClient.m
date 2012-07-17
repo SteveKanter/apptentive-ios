@@ -139,7 +139,12 @@ static ATWebClient *sharedSingleton = nil;
 	[self addAPIHeaders:conn];
 	return [conn autorelease];
 }
-
+- (ATURLConnection *)connectionToGet:(NSURL *)theURL parameters:(NSDictionary *)parameters {
+	theURL = [NSURL URLWithString:[[theURL absoluteString] stringByAppendingString:[NSString stringWithFormat:@"?%@", [self stringForParameters:parameters]]]];
+	ATURLConnection *conn = [[ATURLConnection alloc] initWithURL:theURL];
+	[self addAPIHeaders:conn];
+	return [conn autorelease];	
+}
 - (ATURLConnection *)connectionToPost:(NSURL *)theURL {
 	ATURLConnection *conn = [[ATURLConnection alloc] initWithURL:theURL];
 	[self addAPIHeaders:conn];
