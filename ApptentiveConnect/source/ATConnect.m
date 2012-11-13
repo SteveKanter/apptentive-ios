@@ -82,8 +82,7 @@ static ATConnect *sharedConnection = nil;
 }
 
 #if TARGET_OS_IPHONE
-- (void)presentFeedbackControllerFromViewController:(UIViewController *)viewController withScreenshot:(UIImage *)screenshot {
-    
+- (void) presentFeedbackControllerFromViewController:(UIViewController *)viewController withScreenshot:(UIImage *)screenshot withType:(ATFeedbackType)type {
     if (![[ATBackend sharedBackend] currentFeedback]) {
         ATFeedback *feedback = [[ATFeedback alloc] init];
 		if (additionalFeedbackData && [additionalFeedbackData count]) {
@@ -122,6 +121,12 @@ static ATConnect *sharedConnection = nil;
 	[vc presentFromViewController:viewController animated:YES];
     [vc release];
 }
+
+
+- (void)presentFeedbackControllerFromViewController:(UIViewController *)viewController withScreenshot:(UIImage *)screenshot {
+	[self presentFeedbackControllerFromViewController:viewController withScreenshot:screenshot withType:ATFeedbackTypeFeedback];
+}
+
 - (void)presentFeedbackControllerFromViewController:(UIViewController *)viewController {
 	UIImage *screenshot = nil;
     if (![[ATBackend sharedBackend] currentFeedback]) {
@@ -135,6 +140,8 @@ static ATConnect *sharedConnection = nil;
 	}
 	[self presentFeedbackControllerFromViewController:viewController withScreenshot:screenshot];
 }
+
+
 #elif TARGET_OS_MAC
 - (void)showFeedbackWindow:(id)sender withFeedbackType:(ATFeedbackType)feedbackType {
     if (![[ATBackend sharedBackend] currentFeedback]) {

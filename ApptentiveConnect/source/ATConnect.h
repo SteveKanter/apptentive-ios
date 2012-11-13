@@ -13,6 +13,8 @@
 #import <Cocoa/Cocoa.h>
 #endif
 
+#import "ATFeedback.h"
+
 #define kATConnectVersionString @"0.4.1"
 
 #if TARGET_OS_IPHONE
@@ -53,6 +55,8 @@ typedef enum {
  */
 - (void)presentFeedbackControllerFromViewController:(UIViewController *)viewController;
 - (void)presentFeedbackControllerFromViewController:(UIViewController *)viewController withScreenshot:(UIImage *)screenshot;
+- (void)presentFeedbackControllerFromViewController:(UIViewController *)viewController withScreenshot:(UIImage *)screenshot withType:(ATFeedbackType)type;
+
 #elif TARGET_OS_MAC
 /*!
  * Presents a feedback window.
