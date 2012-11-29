@@ -29,5 +29,6 @@ typedef enum {
 	ATAppRatingButtonTypeNo,
 	ATAppRatingButtonTypeRemind,
 	ATAppRatingButtonTypeRateApp,
+	ATAppRatingButtonTypeFeedback,
 } ATAppRatingButtonType;
 
