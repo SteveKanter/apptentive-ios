@@ -15,9 +15,9 @@
 #import "ATSurveyMetrics.h"
 #import "ATTaskQueue.h"
 
-static NSString *ATMetricNameEnjoymentDialogLaunch = @"enjoyment_dialog.launch";
-static NSString *ATMetricNameEnjoymentDialogYes = @"enjoyment_dialog.yes";
-static NSString *ATMetricNameEnjoymentDialogNo = @"enjoyment_dialog.no";
+//static NSString *ATMetricNameEnjoymentDialogLaunch = @"enjoyment_dialog.launch";
+//static NSString *ATMetricNameEnjoymentDialogYes = @"enjoyment_dialog.yes";
+//static NSString *ATMetricNameEnjoymentDialogNo = @"enjoyment_dialog.no";
 
 static NSString *ATMetricNameRatingDialogLaunch = @"rating_dialog.launch";
 static NSString *ATMetricNameRatingDialogRate = @"rating_dialog.rate";
@@ -196,15 +196,15 @@ static NSString *ATMetricNameAppExit = @"app.exit";
 }
 
 - (void)ratingDidShowEnjoyment:(NSNotification *)notification {
-	[self addMetricWithName:ATMetricNameEnjoymentDialogLaunch info:nil];
+//	[self addMetricWithName:ATMetricNameEnjoymentDialogLaunch info:nil];
 }
 
 - (void)ratingDidClickEnjoyment:(NSNotification *)notification {
 	ATAppRatingEnjoymentButtonType buttonType = [self appEnjoymentButtonTypeFromNotification:notification];
 	if (buttonType == ATAppRatingEnjoymentButtonTypeYes) {
-		[self addMetricWithName:ATMetricNameEnjoymentDialogYes info:nil];
+//		[self addMetricWithName:ATMetricNameEnjoymentDialogYes info:nil];
 	} else if (buttonType == ATAppRatingEnjoymentButtonTypeNo) {
-		[self addMetricWithName:ATMetricNameEnjoymentDialogNo info:nil];
+//		[self addMetricWithName:ATMetricNameEnjoymentDialogNo info:nil];
 	}
 }
 

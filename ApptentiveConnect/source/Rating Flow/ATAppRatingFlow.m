@@ -162,42 +162,42 @@ static ATAppRatingFlow *sharedRatingFlow = nil;
 #endif
 }
 
-#if TARGET_OS_IPHONE
-- (void)showEnjoymentDialog:(UIViewController *)vc
-#elif TARGET_OS_MAC
-- (IBAction)showEnjoymentDialog:(id)sender
-#endif
-{
-	NSString *title = [NSString stringWithFormat:ATLocalizedString(@"Do you love %@?", @"Title for enjoyment alert view. Parameter is app name."), [self appName]];
-#if TARGET_OS_IPHONE
-	self.viewController = vc;
-	if (!enjoymentDialog) {
-		enjoymentDialog = [[UIAlertView alloc] initWithTitle:title message:nil delegate:self cancelButtonTitle:nil otherButtonTitles:ATLocalizedString(@"No", @"no"), ATLocalizedString(@"Yes", @"yes"), nil];
-		[enjoymentDialog show];
-	}
-#elif TARGET_OS_MAC
-	NSAlert *alert = [[[NSAlert alloc] init] autorelease];
-	[alert addButtonWithTitle:ATLocalizedString(@"Yes", @"yes")];
-	[alert addButtonWithTitle:ATLocalizedString(@"No", @"no")];
-	[alert setMessageText:title];
-	[alert setInformativeText:ATLocalizedString(@"You've been using this app for a while. Are you enjoying using it?", @"Enjoyment dialog text")];
-	[alert setAlertStyle:NSInformationalAlertStyle];
-	[alert setIcon:[NSImage imageNamed:NSImageNameApplicationIcon]];
-	NSUInteger result = [alert runModal];
-	if (result == NSAlertFirstButtonReturn) { // yes
-#if TARGET_OS_IPHONE
-		[self showRatingDialog:self.viewController];
-#elif TARGET_OS_MAC
-		[self showRatingDialog:self];
-#endif
-	} else if (result == NSAlertSecondButtonReturn) { // no
-		[self setUserDislikesThisVersion];
-		[[ATConnect sharedConnection] showFeedbackWindow:self];
-	}
-#endif
-	[self postNotification:ATAppRatingDidPromptForEnjoymentNotification];
-	[self setRatingDialogWasShown];
-}
+//#if TARGET_OS_IPHONE
+//- (void)showEnjoymentDialog:(UIViewController *)vc
+//#elif TARGET_OS_MAC
+//- (IBAction)showEnjoymentDialog:(id)sender
+//#endif
+//{
+//	NSString *title = [NSString stringWithFormat:ATLocalizedString(@"Do you love %@?", @"Title for enjoyment alert view. Parameter is app name."), [self appName]];
+//#if TARGET_OS_IPHONE
+//	self.viewController = vc;
+//	if (!enjoymentDialog) {
+//		enjoymentDialog = [[UIAlertView alloc] initWithTitle:title message:nil delegate:self cancelButtonTitle:nil otherButtonTitles:ATLocalizedString(@"No", @"no"), ATLocalizedString(@"Yes", @"yes"), nil];
+//		[enjoymentDialog show];
+//	}
+//#elif TARGET_OS_MAC
+//	NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+//	[alert addButtonWithTitle:ATLocalizedString(@"Yes", @"yes")];
+//	[alert addButtonWithTitle:ATLocalizedString(@"No", @"no")];
+//	[alert setMessageText:title];
+//	[alert setInformativeText:ATLocalizedString(@"You've been using this app for a while. Are you enjoying using it?", @"Enjoyment dialog text")];
+//	[alert setAlertStyle:NSInformationalAlertStyle];
+//	[alert setIcon:[NSImage imageNamed:NSImageNameApplicationIcon]];
+//	NSUInteger result = [alert runModal];
+//	if (result == NSAlertFirstButtonReturn) { // yes
+//#if TARGET_OS_IPHONE
+//		[self showRatingDialog:self.viewController];
+//#elif TARGET_OS_MAC
+//		[self showRatingDialog:self];
+//#endif
+//	} else if (result == NSAlertSecondButtonReturn) { // no
+//		[self setUserDislikesThisVersion];
+//		[[ATConnect sharedConnection] showFeedbackWindow:self];
+//	}
+//#endif
+//	[self postNotification:ATAppRatingDidPromptForEnjoymentNotification];
+//	[self setRatingDialogWasShown];
+//}
 
 #if TARGET_OS_IPHONE
 - (void)showRatingDialog:(UIViewController *)vc
@@ -253,21 +253,22 @@ static ATAppRatingFlow *sharedRatingFlow = nil;
 #if TARGET_OS_IPHONE
 #pragma mark UIAlertViewDelegate
 - (void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex {
-	if (alertView == enjoymentDialog) {
-		[enjoymentDialog release], enjoymentDialog = nil;
-		if (buttonIndex == 0) { // no
-			[self postNotification:ATAppRatingDidClickEnjoymentButtonNotification forButton:ATAppRatingEnjoymentButtonTypeNo];
-			[self setUserDislikesThisVersion];
-			if (!self.viewController) {
-				NSLog(@"No view controller to present feedback interface!!");
-			} else {
-				[self showFeedbackDialog];
-			}
-		} else if (buttonIndex == 1) { // yes
-			[self postNotification:ATAppRatingDidClickEnjoymentButtonNotification forButton:ATAppRatingEnjoymentButtonTypeYes];
-			[self showRatingDialog:self.viewController];
-		}
-	} else if (alertView == ratingDialog) {
+//	if (alertView == enjoymentDialog) {
+//		[enjoymentDialog release], enjoymentDialog = nil;
+//		if (buttonIndex == 0) { // no
+//			[self postNotification:ATAppRatingDidClickEnjoymentButtonNotification forButton:ATAppRatingEnjoymentButtonTypeNo];
+//			[self setUserDislikesThisVersion];
+//			if (!self.viewController) {
+//				NSLog(@"No view controller to present feedback interface!!");
+//			} else {
+//				[self showFeedbackDialog];
+//			}
+//		} else if (buttonIndex == 1) { // yes
+//			[self postNotification:ATAppRatingDidClickEnjoymentButtonNotification forButton:ATAppRatingEnjoymentButtonTypeYes];
+//			[self showRatingDialog:self.viewController];
+//		}
+//	} else
+		if (alertView == ratingDialog) {
 		[ratingDialog release], ratingDialog = nil;
 		if (buttonIndex == 1) { // rate
 			[self postNotification:ATAppRatingDidClickRatingButtonNotification forButton:ATAppRatingButtonTypeRateApp];
@@ -288,10 +289,11 @@ static ATAppRatingFlow *sharedRatingFlow = nil;
 
 - (void)alertView:(UIAlertView *)alertView didDismissWithButtonIndex:(NSInteger)buttonIndex {
 	NSLog(@"ATAppRatingFlow dismissing alert view %@, %d", alertView, buttonIndex);
-	if (alertView == enjoymentDialog) {
-		[enjoymentDialog release], enjoymentDialog = nil;
-		self.viewController = nil;
-	} else if (alertView == ratingDialog) {
+//	if (alertView == enjoymentDialog) {
+//		[enjoymentDialog release], enjoymentDialog = nil;
+//		self.viewController = nil;
+//	} else
+		if (alertView == ratingDialog) {
 		[ratingDialog release], ratingDialog = nil;
 		self.viewController = nil;
 	}
@@ -438,7 +440,7 @@ static ATAppRatingFlow *sharedRatingFlow = nil;
 	}
 #elif TARGET_OS_MAC
 	if ([self shouldShowDialog]) {
-		[self showEnjoymentDialog:self];
+//		[self showEnjoymentDialog:self];
 	}
 #endif
 	return NO;
@@ -536,9 +538,9 @@ static ATAppRatingFlow *sharedRatingFlow = nil;
 #if TARGET_OS_IPHONE
 - (void)appWillEnterBackground:(NSNotification *)notification {
 	// We want to hide any dialogs here.
-	if (enjoymentDialog) {
-		[enjoymentDialog dismissWithClickedButtonIndex:3 animated:NO];
-	}
+//	if (enjoymentDialog) {
+//		[enjoymentDialog dismissWithClickedButtonIndex:3 animated:NO];
+//	}
 	if (ratingDialog) {
 		[ratingDialog dismissWithClickedButtonIndex:3 animated:NO];
 	}

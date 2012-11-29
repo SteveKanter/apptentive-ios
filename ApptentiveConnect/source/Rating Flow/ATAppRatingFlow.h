@@ -22,7 +22,7 @@
 @private
 	NSString *iTunesAppID;
 #if TARGET_OS_IPHONE
-	UIAlertView *enjoymentDialog;
+//	UIAlertView *enjoymentDialog;
 	UIAlertView *ratingDialog;
 #endif
 	
@@ -89,7 +89,7 @@
  Call if you want to show the enjoyment dialog directly. This enters the flow
  for either bringing up the feedback view or the rating dialog.
  */
-- (void)showEnjoymentDialog:(UIViewController *)vc;
+//- (void)showEnjoymentDialog:(UIViewController *)vc;
 
 /*!
  Call if you want to show the rating dialog directly.
@@ -100,7 +100,7 @@
  Call if you want to show the enjoyment dialog directly. This enters the flow
  for either bringing up the feedback view or the rating dialog.
  */
-- (IBAction)showEnjoymentDialog:(id)sender;
+//- (IBAction)showEnjoymentDialog:(id)sender;
 
 /*!
  Call if you want to show the rating dialog directly.
