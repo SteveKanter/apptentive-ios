@@ -7,64 +7,92 @@
 //
 
 #import "ATSurveysBackend.h"
+#import "ATBackend.h"
 #import "ATSurvey.h"
+#import "ATSurveyGetSurveysTask.h"
 #import "ATSurveyMetrics.h"
 #import "ATSurveys.h"
 #import "ATSurveyParser.h"
 #import "ATSurveyViewController.h"
-#import "JSONKit.h"
+#import "ATTaskQueue.h"
 
 NSString *const ATSurveySentSurveysPreferenceKey = @"ATSurveySentSurveysPreferenceKey";
+NSString *const ATSurveyCachedSurveysExpirationPreferenceKey = @"ATSurveyCachedSurveysExpirationPreferenceKey";
 
-@interface ATSurveysBackend (Private)
-- (BOOL)surveyAlreadySubmitted:(ATSurvey *)survey;
+@interface ATSurveysBackend ()
++ (NSString *)cachedSurveysStoragePath;
+- (BOOL)shouldRetrieveNewSurveys;
+- (void)presentSurveyControllerFromViewControllerWithCurrentSurvey:(UIViewController *)viewController;
+- (ATSurvey *)surveyWithTags:(NSSet *)tags;
 @end
 
 @implementation ATSurveysBackend
 
 + (ATSurveysBackend *)sharedBackend {
 	static ATSurveysBackend *sharedBackend = nil;
-	@synchronized(self) {
-		if (sharedBackend == nil) {
-			NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-			NSDictionary *defaultPreferences = [NSDictionary dictionaryWithObject:[NSArray array] forKey:ATSurveySentSurveysPreferenceKey];
-			[defaults registerDefaults:defaultPreferences];
-			
-			sharedBackend = [[ATSurveysBackend alloc] init];
-		}
-	}
+	static dispatch_once_t onceToken;
+	dispatch_once(&onceToken, ^{
+		NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+		NSDictionary *defaultPreferences = [NSDictionary dictionaryWithObject:[NSArray array] forKey:ATSurveySentSurveysPreferenceKey];
+		[defaults registerDefaults:defaultPreferences];
+		
+		sharedBackend = [[ATSurveysBackend alloc] init];
+	});
 	return sharedBackend;
 }
 
--(id) init {
-	if( (self = [super init]) ) {
-		pendingSurveysToBeDisplayed = [[NSMutableDictionary alloc] init];
++ (NSString *)cachedSurveysStoragePath {
+	return [[[ATBackend sharedBackend] supportDirectoryPath] stringByAppendingPathComponent:@"cachedsurveys.objects"];
+}
+
+- (id)init {
+	if ((self = [super init])) {
+		availableSurveys = [[NSMutableArray alloc] init];
+		NSFileManager *fm = [NSFileManager defaultManager];
+		if ([fm fileExistsAtPath:[ATSurveysBackend cachedSurveysStoragePath]]) {
+			@try {
+				NSArray *surveys = [NSKeyedUnarchiver unarchiveObjectWithFile:[ATSurveysBackend cachedSurveysStoragePath]];
+				[availableSurveys addObjectsFromArray:surveys];
+			} @catch (NSException *exception) {
+				ATLogError(@"Unable to unarchive surveys: %@", exception);
+			}
+		}
 	}
 	return self;
 }
+
 - (void)dealloc {
-	checkSurveyRequest.delegate = nil;
-	particularSurveyRequest.delegate = nil;
-	[checkSurveyRequest release], checkSurveyRequest = nil;
-	[particularSurveyRequest release], particularSurveyRequest = nil;
-	[pendingSurveysToBeDisplayed release], pendingSurveysToBeDisplayed = nil;
+	[availableSurveys release], availableSurveys = nil;
 	[super dealloc];
 }
 
-- (void)checkForAvailableSurveys {
-	if (checkSurveyRequest == nil) {
-		ATWebClient *client = [ATWebClient sharedClient];
-		checkSurveyRequest = [[client requestForGettingSurvey] retain];
-		checkSurveyRequest.delegate = self;
-		[checkSurveyRequest start];
+- (BOOL)shouldRetrieveNewSurveys {
+	NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+	
+	NSDate *expiration = [defaults objectForKey:ATSurveyCachedSurveysExpirationPreferenceKey];
+	if (expiration) {
+		NSDate *now = [NSDate date];
+		NSComparisonResult comparison = [expiration compare:now];
+		if (comparison == NSOrderedSame || comparison == NSOrderedAscending) {
+			return YES;
+		} else {
+			NSFileManager *fm = [NSFileManager defaultManager];
+			if (![fm fileExistsAtPath:[ATSurveysBackend cachedSurveysStoragePath]]) {
+				// If no file, check anyway.
+				return YES;
+			}
+			return NO;
+		}
+	} else {
+		return YES;
 	}
 }
-- (void) requestSurvey:(NSString *)tag {
-	if (particularSurveyRequest == nil) {
-		ATWebClient *client = [ATWebClient sharedClient];
-		particularSurveyRequest = [[client requestForGettingParticularSurveyTag:tag] retain];
-		particularSurveyRequest.delegate = self;
-		[particularSurveyRequest start];
+
+- (void)checkForAvailableSurveys {
+	if ([self shouldRetrieveNewSurveys]) {
+		ATSurveyGetSurveysTask *task = [[ATSurveyGetSurveysTask alloc] init];
+		[[ATTaskQueue sharedTaskQueue] addTask:task];
+		[task release], task = nil;
 	}
 }
 
@@ -73,13 +101,13 @@ NSString *const ATSurveySentSurveysPreferenceKey = @"ATSurveySentSurveysPreferen
 }
 
 - (void)resetSurvey {
-	[currentSurvey release], currentSurvey = nil;
+	@synchronized(self) {
+		[currentSurvey reset];
+		[currentSurvey release], currentSurvey = nil;
+	}
 }
 
-- (void)presentSurveyControllerFromViewController:(UIViewController *)viewController {
-	if (currentSurvey == nil) {
-		return;
-	}
+- (void)presentSurveyControllerFromViewControllerWithCurrentSurvey:(UIViewController *)viewController {
 	ATSurveyViewController *vc = [[ATSurveyViewController alloc] initWithSurvey:currentSurvey];
 	UINavigationController *nc = [[UINavigationController alloc] initWithRootViewController:vc];
 	
@@ -96,15 +124,33 @@ NSString *const ATSurveySentSurveysPreferenceKey = @"ATSurveySentSurveysPreferen
 	[[NSNotificationCenter defaultCenter] postNotificationName:ATSurveyDidShowWindowNotification object:nil userInfo:metricsInfo];
 	[metricsInfo release], metricsInfo = nil;
 }
-- (void)presentSurvey:(NSString *)tag fromViewController:(UIViewController *)viewController {
-	[pendingSurveysToBeDisplayed setObject:viewController forKey:tag];
-	[self requestSurvey:tag];
+
+- (void)presentSurveyControllerWithNoTagsFromViewController:(UIViewController *)viewController {
+	if (currentSurvey != nil) {
+		[self resetSurvey];
+	}
+	currentSurvey = [[self surveyWithNoTags] retain];
+	if (currentSurvey == nil) {
+		return;
+	}
+	[self presentSurveyControllerFromViewControllerWithCurrentSurvey:viewController];
+}
+
+- (void)presentSurveyControllerWithTags:(NSSet *)tags fromViewController:(UIViewController *)viewController {
+	if (currentSurvey != nil) {
+		[self resetSurvey];
+	}
+	currentSurvey = [[self surveyWithTags:tags] retain];
+	if (currentSurvey == nil) {
+		return;
+	}
+	[self presentSurveyControllerFromViewControllerWithCurrentSurvey:viewController];
 }
 
 - (void)setDidSendSurvey:(ATSurvey *)survey {
 	NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
 	NSArray *sentSurveys = [defaults objectForKey:ATSurveySentSurveysPreferenceKey];
-	if (![sentSurveys containsObject:survey.identifier] && ![survey multipleResponsesAllowed]) {
+	if (![sentSurveys containsObject:survey.identifier]) {
 		NSMutableArray *replacementSurveys = [sentSurveys mutableCopy];
 		[replacementSurveys addObject:survey.identifier];
 		[defaults setObject:replacementSurveys forKey:ATSurveySentSurveysPreferenceKey];
@@ -113,42 +159,49 @@ NSString *const ATSurveySentSurveysPreferenceKey = @"ATSurveySentSurveysPreferen
 	}
 }
 
-#pragma mark ATAPIRequestDelegate
-- (void)at_APIRequestDidFinish:(ATAPIRequest *)request result:(NSObject *)result {
-	if (request == checkSurveyRequest || request == particularSurveyRequest) {
-		ATSurveyParser *parser = [[ATSurveyParser alloc] init];
-		ATSurvey *survey = [parser parseSurvey:(NSData *)result];
-		if (survey == nil) {
-			NSLog(@"An error occurred parsing survey: %@", [parser parserError]);
-		} else if (![self surveyAlreadySubmitted:survey]) {
-			[currentSurvey release], currentSurvey = nil;
-			currentSurvey = [survey retain];
-			[[NSNotificationCenter defaultCenter] postNotificationName:ATSurveyNewSurveyAvailableNotification object:nil];
-		}
-		if(request == checkSurveyRequest) {
-			checkSurveyRequest.delegate = nil;
-			[checkSurveyRequest release], checkSurveyRequest = nil;
-		}
-		if(request == particularSurveyRequest) {
-			particularSurveyRequest.delegate = nil;
-			[particularSurveyRequest release], particularSurveyRequest = nil;
-			
-			NSString *key = [[currentSurvey tags] componentsJoinedByString:@","];
-			if([pendingSurveysToBeDisplayed objectForKey:key]) {
-				UIViewController *viewController = [pendingSurveysToBeDisplayed objectForKey:key];
-				[pendingSurveysToBeDisplayed removeObjectForKey:key];
-				[self presentSurveyControllerFromViewController:viewController];
+- (ATSurvey *)surveyWithNoTags {
+	ATSurvey *result = nil;
+	@synchronized(self) {
+		for (ATSurvey *survey in availableSurveys) {
+			if ([survey surveyHasNoTags]) {
+				if ([survey isEligibleToBeShown]) {
+					result = survey;
+				}
 			}
 		}
-		[parser release], parser = nil;
+	}
+	return result;
+}
+
+- (ATSurvey *)surveyWithTags:(NSSet *)tags {
+	ATSurvey *result = nil;
+	@synchronized(self) {
+		for (ATSurvey *survey in availableSurveys) {
+			if ([survey surveyHasTags:tags]) {
+				if ([survey isEligibleToBeShown]) {
+					result = survey;
+				}
+			}
+		}
+	}
+	return result;
+}
+
+- (BOOL)hasSurveyAvailableWithNoTags {
+	ATSurvey *survey = [self surveyWithNoTags];
+	if (survey) {
+		return YES;
+	} else {
+		return NO;
 	}
 }
 
-- (void)at_APIRequestDidFail:(ATAPIRequest *)request {
-	if (request == checkSurveyRequest) {
-		NSLog(@"Survey request failed: %@: %@", request.errorTitle, request.errorMessage);
-		checkSurveyRequest.delegate = nil;
-		[checkSurveyRequest release], checkSurveyRequest = nil;
+- (BOOL)hasSurveyAvailableWithTags:(NSSet *)tags {
+	ATSurvey *survey = [self surveyWithTags:tags];
+	if (survey) {
+		return YES;
+	} else {
+		return NO;
 	}
 }
 @end
@@ -162,5 +215,32 @@ NSString *const ATSurveySentSurveysPreferenceKey = @"ATSurveySentSurveysPreferen
 		sentSurvey = YES;
 	}
 	return sentSurvey;
+}
+
+- (void)didReceiveNewSurveys:(NSArray *)surveys maxAge:(NSTimeInterval)expiresMaxAge {
+	BOOL hasNewSurvey = NO;
+	for (ATSurvey *survey in surveys) {
+		if (![self surveyAlreadySubmitted:survey]) {
+			hasNewSurvey = YES;
+		}
+	}
+	
+	@synchronized(self) {
+		[NSKeyedArchiver archiveRootObject:surveys toFile:[ATSurveysBackend cachedSurveysStoragePath]];
+		// Store expiration.
+		if (expiresMaxAge > 0) {
+			NSDate *date = [NSDate dateWithTimeInterval:expiresMaxAge sinceDate:[NSDate date]];
+			NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+			[defaults setObject:date forKey:ATSurveyCachedSurveysExpirationPreferenceKey];
+			[defaults synchronize];
+		}
+		
+		[availableSurveys removeAllObjects];
+		[availableSurveys addObjectsFromArray:surveys];
+	}
+	
+	if (hasNewSurvey) {
+		[[NSNotificationCenter defaultCenter] postNotificationName:ATSurveyNewSurveyAvailableNotification object:nil];
+	}
 }
 @end

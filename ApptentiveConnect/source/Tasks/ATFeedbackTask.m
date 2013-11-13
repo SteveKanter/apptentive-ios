@@ -7,6 +7,7 @@
 //
 
 #import "ATFeedbackTask.h"
+#import "ATBackend.h"
 #import "ATFeedback.h"
 #import "ATWebClient.h"
 
@@ -40,7 +41,15 @@
 
 - (void)dealloc {
 	[self teardown];
+	[feedback release], feedback = nil;
 	[super dealloc];
+}
+
+- (BOOL)canStart {
+	if ([[ATBackend sharedBackend] apiKey] == nil) {
+		return NO;
+	}
+	return YES;
 }
 
 - (void)start {
@@ -80,7 +89,10 @@
 #pragma mark ATAPIRequestDelegate
 - (void)at_APIRequestDidFinish:(ATAPIRequest *)sender result:(NSObject *)result {
 	@synchronized(self) {
+		[self retain];
 		self.finished = YES;
+		[self stop];
+		[self release];
 	}
 }
 
@@ -90,12 +102,18 @@
 
 - (void)at_APIRequestDidFail:(ATAPIRequest *)sender {
 	@synchronized(self) {
+		[self retain];
 		self.failed = YES;
 		self.lastErrorTitle = sender.errorTitle;
 		self.lastErrorMessage = sender.errorMessage;
-		NSLog(@"ATAPIRequest failed: %@, %@", sender.errorTitle, sender.errorMessage);
+		ATLogInfo(@"ATAPIRequest failed: %@, %@", sender.errorTitle, sender.errorMessage);
 		[self stop];
+		[self release];
 	}
+}
+
+- (void)cleanup {
+	[feedback cleanup];
 }
 @end
 
@@ -106,6 +124,5 @@
 
 - (void)teardown {
 	[self stop];
-	self.feedback = nil;
 }
 @end

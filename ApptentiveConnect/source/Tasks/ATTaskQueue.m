@@ -9,12 +9,14 @@
 #import "ATTaskQueue.h"
 #import "ATBackend.h"
 #import "ATTask.h"
+#import "ATLegacyRecord.h"
+#import "ATLegacySurveyResponse.h"
 
 #define kATTaskQueueCodingVersion 1
 // Retry period in seconds.
 #define kATTaskQueueRetryPeriod 180.0
 
-#define kMaxFailureCount 500
+#define kMaxFailureCount 30
 
 static ATTaskQueue *sharedTaskQueue = nil;
 
@@ -40,7 +42,21 @@ static ATTaskQueue *sharedTaskQueue = nil;
 	@synchronized(self) {
 		if (sharedTaskQueue == nil) {
 			if ([ATTaskQueue serializedQueueExists]) {
-				sharedTaskQueue = [[NSKeyedUnarchiver unarchiveObjectWithFile:[ATTaskQueue taskQueuePath]] retain];
+				NSError *error = nil;
+				NSData *data = [NSData dataWithContentsOfFile:[ATTaskQueue taskQueuePath] options:NSDataReadingMapped error:&error];
+				if (!data) {
+					ATLogError(@"Unable to unarchive task queue: %@", error);
+				} else {
+					@try {
+						NSKeyedUnarchiver *unarchiver = [[NSKeyedUnarchiver alloc] initForReadingWithData:data];
+						[unarchiver setClass:[ATLegacyRecord class] forClassName:@"ATRecord"];
+						[unarchiver setClass:[ATLegacySurveyResponse class] forClassName:@"ATSurveyResponse"];
+						sharedTaskQueue = [[unarchiver decodeObjectForKey:@"root"] retain];
+						[unarchiver release], unarchiver = nil;
+					} @catch (NSException *exception) {
+						ATLogError(@"Unable to unarchive task queue: %@", exception);
+					}
+				}
 			}
 			if (!sharedTaskQueue) {
 				sharedTaskQueue = [[ATTaskQueue alloc] init];
@@ -82,7 +98,16 @@ static ATTaskQueue *sharedTaskQueue = nil;
 
 - (void)encodeWithCoder:(NSCoder *)coder {
 	[coder encodeInt:kATTaskQueueCodingVersion forKey:@"version"];
-	[coder encodeObject:tasks forKey:@"tasks"];
+	@synchronized(self) {
+		NSMutableArray *archivableTasks = [[NSMutableArray alloc] init];
+		for (ATTask *task in tasks) {
+			if ([task shouldArchive]) {
+				[archivableTasks addObject:task];
+			}
+		}
+		[coder encodeObject:archivableTasks forKey:@"tasks"];
+		[archivableTasks release], archivableTasks = nil;
+	}
 }
 
 - (void)dealloc {
@@ -97,6 +122,19 @@ static ATTaskQueue *sharedTaskQueue = nil;
 		[self archive];
 	}
 	[self start];
+}
+
+- (BOOL)hasTaskOfClass:(Class)c {
+	BOOL result = NO;
+	@synchronized(self) {
+		for (ATTask *task in tasks) {
+			if ([task isKindOfClass:c]) {
+				result = YES;
+				break;
+			}
+		}
+	}
+	return result;
 }
 
 - (NSUInteger)count {
@@ -141,8 +179,9 @@ static ATTaskQueue *sharedTaskQueue = nil;
 }
 
 - (void)start {
-	if ([[NSThread currentThread] isMainThread]) {
-		[self performSelectorInBackground:@selector(start) withObject:nil];
+	// We can no longer do this in the background because of CoreData objects.
+	if (![[NSThread currentThread] isMainThread]) {
+		[self performSelectorOnMainThread:@selector(start) withObject:nil waitUntilDone:NO];
 		return;
 	}
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
@@ -153,13 +192,18 @@ static ATTaskQueue *sharedTaskQueue = nil;
 		}
 		
 		if ([tasks count]) {
-			activeTask = [tasks objectAtIndex:0];
-			[activeTask addObserver:self forKeyPath:@"finished" options:NSKeyValueObservingOptionNew context:NULL];
-			[activeTask addObserver:self forKeyPath:@"failed" options:NSKeyValueObservingOptionNew context:NULL];
-			[activeTask start];
+			for (ATTask *task in tasks) {
+				if ([task canStart]) {
+					activeTask = task;
+					[activeTask addObserver:self forKeyPath:@"finished" options:NSKeyValueObservingOptionNew context:NULL];
+					[activeTask addObserver:self forKeyPath:@"failed" options:NSKeyValueObservingOptionNew context:NULL];
+					[activeTask start];
+					break;
+				}
+			}
 		}
 	}
-	[pool release];
+	[pool release], pool = nil;
 }
 
 - (void)stop {
@@ -169,32 +213,60 @@ static ATTaskQueue *sharedTaskQueue = nil;
 	}
 }
 
+- (NSString *)queueDescription {
+	NSMutableString *result = [[NSMutableString alloc] init];
+	@synchronized(self) {
+		[result appendString:[NSString stringWithFormat:@"<ATTaskQueue: %d task(s) [", [tasks count]]];
+		NSMutableArray *parts = [[NSMutableArray alloc] init];
+		for (ATTask *task in tasks) {
+			[parts addObject:[task taskDescription]];
+		}
+		if ([parts count]) {
+			[result appendString:@"\n"];
+			[result appendString:[parts componentsJoinedByString:@",\n"]];
+			[result appendString:@"\n"];
+		}
+		[parts release], parts = nil;
+		[result appendString:@"]>"];
+	}
+	return [result autorelease];
+}
+
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
 	@synchronized(self) {
 		if (object != activeTask) return;
 		ATTask *task = (ATTask *)object;
 		if ([keyPath isEqualToString:@"finished"] && [task finished]) {
 			[self unsetActiveTask];
+			[task cleanup];
 			[tasks removeObject:object];
 			[self archive];
 			[self start];
 		} else if ([keyPath isEqualToString:@"failed"] && [task failed]) {
-			[self stop];
-			task.failureCount = task.failureCount + 1;
-			if (task.failureCount > kMaxFailureCount) {
-				NSLog(@"Task %@ failed too many times, removing from queue.", task);
+			if (task.isFailureOkay) {
+				task.failureCount = task.failureCount + 1;
 				[self unsetActiveTask];
 				[tasks removeObject:task];
 				[self start];
 			} else {
-				// Put task on back of queue.
-				[task retain];
-				[tasks removeObject:task];
-				[tasks addObject:task];
-				[task release];
-				[self archive];
-				
-				[self performSelector:@selector(start) withObject:nil afterDelay:kATTaskQueueRetryPeriod];
+				[self stop];
+				task.failureCount = task.failureCount + 1;
+				if (task.failureCount > kMaxFailureCount) {
+					ATLogError(@"Task %@ failed too many times, removing from queue.", task);
+					[self unsetActiveTask];
+					[task cleanup];
+					[tasks removeObject:task];
+					[self start];
+				} else {
+					// Put task on back of queue.
+					[task retain];
+					[tasks removeObject:task];
+					[tasks addObject:task];
+					[task release];
+					[self archive];
+					
+					[self performSelector:@selector(start) withObject:nil afterDelay:kATTaskQueueRetryPeriod];
+				}
 			}
 		}
 	}
@@ -211,8 +283,7 @@ static ATTaskQueue *sharedTaskQueue = nil;
 - (void)teardown {
 	@synchronized(self) {
 		[self stop];
-		[tasks release];
-		tasks = nil;
+		[tasks release], tasks = nil;
 		[NSObject cancelPreviousPerformRequestsWithTarget:self];
 	}
 }
@@ -229,8 +300,9 @@ static ATTaskQueue *sharedTaskQueue = nil;
 
 - (void)archive {
 	@synchronized(self) {
-		[NSKeyedArchiver archiveRootObject:sharedTaskQueue toFile:[ATTaskQueue taskQueuePath]];
+		if (![NSKeyedArchiver archiveRootObject:sharedTaskQueue toFile:[ATTaskQueue taskQueuePath]]) {
+			ATLogError(@"Unable to archive task queue to: %@", [ATTaskQueue taskQueuePath]);
+		}
 	}
 }
 @end
-

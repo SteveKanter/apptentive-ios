@@ -7,6 +7,7 @@
 //
 
 #import <Foundation/Foundation.h>
+
 #import "ATTask.h"
 #import "ATAPIRequest.h"
 
@@ -15,6 +16,7 @@
 @interface ATFeedbackTask : ATTask <ATAPIRequestDelegate> {
 @private
 	ATAPIRequest *request;
+	ATFeedback *feedback;
 }
 @property (nonatomic, retain) ATFeedback *feedback;
 

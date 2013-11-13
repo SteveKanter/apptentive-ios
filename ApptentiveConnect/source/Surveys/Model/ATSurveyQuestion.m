@@ -8,6 +8,9 @@
 
 #import "ATSurveyQuestion.h"
 
+#define kATSurveyQuestionStorageVersion 1
+#define kATSurveyQuestionAnswerStorageVersion 1
+
 @implementation ATSurveyQuestion
 @synthesize type;
 @synthesize responseRequired;
@@ -20,13 +23,64 @@
 @synthesize selectedAnswerChoices;
 @synthesize minSelectionCount;
 @synthesize maxSelectionCount;
+@synthesize multiline;
 
 - (id)init {
 	if ((self = [super init])) {
 		answerChoices = [[NSMutableArray alloc] init];
 		selectedAnswerChoices = [[NSMutableArray alloc] init];
+		self.multiline = YES;
 	}
 	return self;
+}
+
+- (id)initWithCoder:(NSCoder *)coder {
+	if ((self = [super init])) {
+		int version = [coder decodeIntForKey:@"version"];
+		answerChoices = [[NSMutableArray alloc] init];
+		selectedAnswerChoices = [[NSMutableArray alloc] init];
+		if (version == kATSurveyQuestionStorageVersion) {
+			self.type = [coder decodeIntForKey:@"type"];
+			self.identifier = [coder decodeObjectForKey:@"identifier"];
+			self.responseRequired = [coder decodeBoolForKey:@"responseRequired"];
+			self.questionText = [coder decodeObjectForKey:@"questionText"];
+			self.instructionsText = [coder decodeObjectForKey:@"instructionsText"];
+			self.value = [coder decodeObjectForKey:@"value"];
+			
+			NSArray *decodedAnswerChoices = [coder decodeObjectForKey:@"answerChoices"];
+			if (decodedAnswerChoices) {
+				[answerChoices addObjectsFromArray:decodedAnswerChoices];
+			}
+			
+			self.answerText = [coder decodeObjectForKey:@"answerText"];
+			self.minSelectionCount = [(NSNumber *)[coder decodeObjectForKey:@"minSelectionCount"] unsignedIntegerValue];
+			self.maxSelectionCount = [(NSNumber *)[coder decodeObjectForKey:@"maxSelectionCount"] unsignedIntegerValue];
+			if ([coder decodeObjectForKey:@"multiline"]) {
+				self.multiline = [(NSNumber *)[coder decodeObjectForKey:@"multiline"] boolValue];
+			} else {
+				self.multiline = YES;
+			}
+		} else {
+			[self release];
+			return nil;
+		}
+	}
+	return self;
+}
+
+- (void)encodeWithCoder:(NSCoder *)coder {
+	[coder encodeInt:kATSurveyQuestionStorageVersion forKey:@"version"];
+	[coder encodeInt:type forKey:@"type"];
+	[coder encodeObject:identifier forKey:@"identifier"];
+	[coder encodeBool:responseRequired forKey:@"responseRequired"];
+	[coder encodeObject:questionText forKey:@"questionText"];
+	[coder encodeObject:instructionsText forKey:@"instructionsText"];
+	[coder encodeObject:value forKey:@"value"];
+	[coder encodeObject:answerChoices forKey:@"answerChoices"];
+	[coder encodeObject:answerText forKey:@"answerText"];
+	[coder encodeObject:[NSNumber numberWithUnsignedInteger:minSelectionCount] forKey:@"minSelectionCount"];
+	[coder encodeObject:[NSNumber numberWithUnsignedInteger:maxSelectionCount] forKey:@"maxSelectionCount"];
+	[coder encodeObject:[NSNumber numberWithBool:self.multiline] forKey:@"multiline"];
 }
 
 - (void)dealloc {
@@ -69,21 +123,48 @@
 			error = ATSurveyQuestionValidationErrorMissingRequiredAnswer;
 		}
 	} else if (self.type == ATSurveyQuestionTypeMultipleSelect) {
-		if (self.responseIsRequired) {
-			if (minSelectionCount != 0 && [self.selectedAnswerChoices count] < minSelectionCount) {
+		NSUInteger answerCount = [self.selectedAnswerChoices count];
+		
+		if (self.responseIsRequired || answerCount > 0) {
+			if (minSelectionCount != 0 && answerCount < minSelectionCount) {
 				error = ATSurveyQuestionValidationErrorTooFewAnswers;
-			} else if (maxSelectionCount != 0 && [self.selectedAnswerChoices count] > maxSelectionCount) {
+			} else if (maxSelectionCount != 0 && answerCount > maxSelectionCount) {
 				error = ATSurveyQuestionValidationErrorTooManyAnswers;
 			}
 		}
 	}
 	return error;
 }
+
+- (void)reset {
+	[selectedAnswerChoices removeAllObjects];
+	self.answerText = nil;
+}
 @end
 
 @implementation ATSurveyQuestionAnswer
 @synthesize identifier;
 @synthesize value;
+
+- (id)initWithCoder:(NSCoder *)coder {
+	if ((self = [super init])) {
+		int version = [coder decodeIntForKey:@"version"];
+		if (version == kATSurveyQuestionAnswerStorageVersion) {
+			self.identifier = [coder decodeObjectForKey:@"identifier"];
+			self.value = [coder decodeObjectForKey:@"value"];
+		} else {
+			[self release];
+			return nil;
+		}
+	}
+	return self;
+}
+
+- (void)encodeWithCoder:(NSCoder *)coder {
+	[coder encodeInt:kATSurveyQuestionAnswerStorageVersion forKey:@"version"];
+	[coder encodeObject:identifier forKey:@"identifier"];
+	[coder encodeObject:value forKey:@"value"];
+}
 
 - (void)dealloc {
 	[identifier release], identifier = nil;

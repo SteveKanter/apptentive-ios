@@ -13,13 +13,21 @@
 #import "ATSurveys.h"
 
 @implementation FeedbackDemoAppDelegate
-
-
 @synthesize window=_window;
 
 @synthesize navigationController=_navigationController;
+- (void)resetApptentiveRatings {
+	NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+	[defaults removeObjectForKey:@"ATAppRatingFlowRatedAppKey"];
+	[defaults removeObjectForKey:@"ATAppRatingFlowDeclinedToRateThisVersionKey"];
+	[defaults removeObjectForKey:@"ATAppRatingFlowUserDislikesThisVersionKey"];
+	[defaults removeObjectForKey:@"ATAppRatingFlowLastUsedVersionKey"];
+	[defaults removeObjectForKey:@"ATAppRatingFlowLastPromptDateKey"];
+	[defaults synchronize];
+}
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
+	[self resetApptentiveRatings];
 	// Override point for customization after application launch.
 	// Add the navigation controller's view to the window and display.
 	if ([self.window respondsToSelector:@selector(setRootViewController:)]) {
@@ -29,10 +37,15 @@
 	}
 	[self.window makeKeyAndVisible];
 	[[ATConnect sharedConnection] setApiKey:kApptentiveAPIKey];
-	ATAppRatingFlow *ratingFlow = [ATAppRatingFlow sharedRatingFlowWithAppID:kApptentiveAppID];
-	[ratingFlow appDidLaunch:YES viewController:self.navigationController];
 	
-	[ATSurveys checkForAvailableSurveys];
+	ATAppRatingFlow *flow = [ATAppRatingFlow sharedRatingFlowWithAppID:kApptentiveAppID];
+	[flow showRatingFlowFromViewControllerIfConditionsAreMet:self.navigationController];
+	
+	double delayInSeconds = 2.0;
+	dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delayInSeconds * NSEC_PER_SEC));
+	dispatch_after(popTime, dispatch_get_main_queue(), ^(void){
+		[[ATConnect sharedConnection] engage:@"app.launch" fromViewController:self.navigationController];
+	});
 	
 	return YES;
 }
@@ -61,7 +74,7 @@
 	/*
 	 Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
 	 */
-	[[ATAppRatingFlow sharedRatingFlowWithAppID:kApptentiveAppID] appDidEnterForeground:YES viewController:self.navigationController];
+	[[ATAppRatingFlow sharedRatingFlow] showRatingFlowFromViewControllerIfConditionsAreMet:self.navigationController];
 }
 
 - (void)applicationWillTerminate:(UIApplication *)application {
@@ -73,8 +86,8 @@
 }
 
 - (void)dealloc {
-	[_window release];
-	[_navigationController release];
+	[_window release], _window = nil;
+	[_navigationController release], _navigationController = nil;
 	[super dealloc];
 }
 @end

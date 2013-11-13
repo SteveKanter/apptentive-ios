@@ -7,23 +7,27 @@
 //
 
 #import <UIKit/UIKit.h>
-#import "ATAPIRequest.h"
-#import "ATWebClient+SurveyAdditions.h"
 
 @class ATSurvey;
 
-@interface ATSurveysBackend : NSObject <ATAPIRequestDelegate> {
+@interface ATSurveysBackend : NSObject {
 @private
-	ATAPIRequest *checkSurveyRequest;
+	NSMutableArray *availableSurveys;
 	ATSurvey *currentSurvey;
-	ATAPIRequest *particularSurveyRequest;
-	NSMutableDictionary *pendingSurveysToBeDisplayed;
 }
 + (ATSurveysBackend *)sharedBackend;
 - (void)checkForAvailableSurveys;
 - (ATSurvey *)currentSurvey;
 - (void)resetSurvey;
-- (void)presentSurveyControllerFromViewController:(UIViewController *)viewController;
-- (void)presentSurvey:(NSString *)tag fromViewController:(UIViewController *)viewController;
+- (void)presentSurveyControllerWithNoTagsFromViewController:(UIViewController *)viewController;
+- (void)presentSurveyControllerWithTags:(NSSet *)tags fromViewController:(UIViewController *)viewController;
 - (void)setDidSendSurvey:(ATSurvey *)survey;
+- (BOOL)hasSurveyAvailableWithNoTags;
+- (BOOL)hasSurveyAvailableWithTags:(NSSet *)tags;
+@end
+
+
+@interface ATSurveysBackend (Private)
+- (BOOL)surveyAlreadySubmitted:(ATSurvey *)survey;
+- (void)didReceiveNewSurveys:(NSArray *)surveys maxAge:(NSTimeInterval)expiresMaxAge;
 @end

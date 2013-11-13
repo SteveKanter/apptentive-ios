@@ -9,10 +9,14 @@
 #import <Foundation/Foundation.h>
 
 @interface ATContactStorage : NSObject <NSCoding> {
+@private
+	NSString *name;
+	NSString *email;
+	NSString *phone;
 }
-@property (nonatomic, retain) NSString *name;
-@property (nonatomic, retain) NSString *email;
-@property (nonatomic, retain) NSString *phone;
+@property (nonatomic, copy) NSString *name;
+@property (nonatomic, copy) NSString *email;
+@property (nonatomic, copy) NSString *phone;
 + (ATContactStorage *)sharedContactStorage;
 + (void)releaseSharedContactStorage;
 - (void)save;

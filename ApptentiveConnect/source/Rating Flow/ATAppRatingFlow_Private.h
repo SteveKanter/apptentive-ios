@@ -6,7 +6,7 @@
 //  Copyright (c) 2012 Apptentive, Inc. All rights reserved.
 //
 
-#import <Foundation/Foundation.h>
+#import <UIKit/UIKit.h>
 
 NSString *const ATAppRatingClearCountsOnUpgradePreferenceKey;
 NSString *const ATAppRatingEnabledPreferenceKey;
@@ -19,19 +19,31 @@ NSString *const ATAppRatingPromptLogicPreferenceKey;
 
 NSString *const ATAppRatingSettingsAreFromServerPreferenceKey;
 
+NSString *const ATAppRatingReviewURLPreferenceKey;
+
 
 
 NSString *const ATAppRatingFlowLastUsedVersionKey;
 NSString *const ATAppRatingFlowLastUsedVersionFirstUseDateKey;
 NSString *const ATAppRatingFlowDeclinedToRateThisVersionKey;
 NSString *const ATAppRatingFlowUserDislikesThisVersionKey;
+NSString *const ATAppRatingFlowPromptCountThisVersionKey;
 NSString *const ATAppRatingFlowLastPromptDateKey;
 NSString *const ATAppRatingFlowRatedAppKey;
 
 NSString *const ATAppRatingFlowUseCountKey;
 NSString *const ATAppRatingFlowSignificantEventsCountKey;
 
-@interface ATAppRatingFlowPredicateInfo : NSObject
+@interface ATAppRatingFlowPredicateInfo : NSObject {
+@private
+	NSDate *firstUse;
+	NSUInteger significantEvents;
+	NSUInteger appUses;
+	
+	NSUInteger daysBeforePrompt;
+	NSUInteger significantEventsBeforePrompt;
+	NSUInteger usesBeforePrompt;
+}
 @property (nonatomic, retain) NSDate *firstUse;
 @property (nonatomic, assign) NSUInteger significantEvents;
 @property (nonatomic, assign) NSUInteger appUses;
@@ -54,3 +66,4 @@ NSString *const ATAppRatingFlowSignificantEventsCountKey;
 + (NSPredicate *)predicateForPromptLogic:(NSObject *)promptObject withPredicateInfo:(ATAppRatingFlowPredicateInfo *)info;
 + (BOOL)evaluatePredicate:(NSPredicate *)ratingsPredicate withPredicateInfo:(ATAppRatingFlowPredicateInfo *)info;
 @end
+

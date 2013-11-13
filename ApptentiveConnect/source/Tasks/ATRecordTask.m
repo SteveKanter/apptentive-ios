@@ -7,7 +7,10 @@
 //
 
 #import "ATRecordTask.h"
+#import "ApptentiveMetrics.h"
+#import "ATBackend.h"
 #import "ATFeedback.h"
+#import "ATMetric.h"
 #import "ATWebClient.h"
 
 #define kATRecordTaskCodingVersion 1
@@ -15,6 +18,7 @@
 @interface ATRecordTask (Private)
 - (void)setup;
 - (void)teardown;
+- (BOOL)handleLegacyRecord;
 @end
 
 @implementation ATRecordTask
@@ -40,10 +44,22 @@
 
 - (void)dealloc {
 	[self teardown];
+	[record release], record = nil;
 	[super dealloc];
 }
 
+- (BOOL)canStart {
+	if ([[ATBackend sharedBackend] apiKey] == nil) {
+		return NO;
+	}
+	return YES;
+}
+
 - (void)start {
+	if ([self handleLegacyRecord]) {
+		self.finished = YES;
+		return;
+	}
 	if (!request) {
 		request = [[self.record requestForSendingRecord] retain];
 		if (request != nil) {
@@ -77,10 +93,17 @@
 	return @"record";
 }
 
+- (void)cleanup {
+	[record cleanup];
+}
+
 #pragma mark ATAPIRequestDelegate
 - (void)at_APIRequestDidFinish:(ATAPIRequest *)sender result:(id)result {
 	@synchronized(self) {
+		[self retain];
+		[self stop];
 		self.finished = YES;
+		[self release];
 	}
 }
 
@@ -90,11 +113,13 @@
 
 - (void)at_APIRequestDidFail:(ATAPIRequest *)sender {
 	@synchronized(self) {
+		[self retain];
 		self.failed = YES;
 		self.lastErrorTitle = sender.errorTitle;
 		self.lastErrorMessage = sender.errorMessage;
-		NSLog(@"ATAPIRequest failed: %@, %@", sender.errorTitle, sender.errorMessage);
-		[self stop];        
+		ATLogInfo(@"ATAPIRequest failed: %@, %@", sender.errorTitle, sender.errorMessage);
+		[self stop];
+		[self release];
 	}
 }
 @end
@@ -106,5 +131,14 @@
 
 - (void)teardown {
 	[self stop];
+}
+
+- (BOOL)handleLegacyRecord {
+	if ([self.record isKindOfClass:[ATMetric class]]) {
+		if ([[ApptentiveMetrics sharedMetrics] upgradeLegacyMetric:(ATMetric *)self.record]) {
+			return YES;
+		}
+	}
+	return NO;
 }
 @end
