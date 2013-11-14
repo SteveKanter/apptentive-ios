@@ -23,7 +23,6 @@
 @synthesize questions;
 @synthesize tags;
 @synthesize successMessage;
-@synthesize tags;
 
 NSString *const ATSurveyViewDatesKey = @"ATSurveyViewDatesKey";
 

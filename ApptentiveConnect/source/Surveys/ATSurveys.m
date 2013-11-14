@@ -50,8 +50,5 @@ NSString *const ATSurveyIDKey = @"ATSurveyIDKey";
 	ATSurveysBackend *backend = [ATSurveysBackend sharedBackend];
 	[backend presentSurveyControllerWithTags:tags fromViewController:viewController];
 }
-+ (void)presentSurveyWithTag:(NSString *)tag fromViewController:(UIViewController *)viewController {
-	ATSurveysBackend *backend = [ATSurveysBackend sharedBackend];
-	[backend presentSurvey:tag fromViewController:viewController];
-}
+
 @end
